@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SDA BACK MARKET</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <style>
+        :root { --brand: #f0b90b; --bg: #0b0e11; --card: #1e2329; --green: #2ebd85; --red: #f6465d; --gray: #848e9c; }
+        body { background: var(--bg); color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 10px; padding-bottom: 90px; }
+        .header { text-align: center; color: var(--brand); padding: 15px 0; cursor: pointer; font-weight: 900; font-size: 22px; }
+        .card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #333; }
+        input { width: 100%; padding: 12px; margin: 6px 0; background: #2b3139; border: 1px solid #444; color: #fff; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; background: var(--brand); color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; margin-top: 5px; }
+        .hidden { display: none !important; }
+        .bal-display { background: #000; padding: 15px; border-radius: 10px; border: 1px solid var(--brand); margin: 10px 0; text-align: center; }
+        .ad-item { background: #161a1e; padding: 12px; border-radius: 10px; border-left: 4px solid var(--brand); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .alert-box { background: #1a1a00; border: 1px solid var(--brand); color: var(--brand); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 13px; line-height: 1.4; }
+        .nav-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: #181a20; display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #333; z-index: 1000; }
+        .nav-item { color: var(--gray); font-size: 10px; text-align: center; cursor: pointer; flex: 1; font-weight: 600; }
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--brand); color: #000; padding: 12px 24px; border-radius: 30px; font-weight: bold; z-index: 10001; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .copy-btn { background: #333; color: var(--brand); font-size: 10px; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; margin-top: 5px; }
+        .legal-text { font-size: 13px; color: var(--gray); line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div id="toast"></div>
+<h1 class="header" onclick="triggerAdmin()">SDA BACK MARKET</h1>
+
+<div id="authPanel" class="card">
+    <h3 id="authTitle" style="text-align:center;">Secure Access</h3>
+    <input type="number" id="uPhone" placeholder="Phone Number">
+    <input type="password" id="uPin" maxlength="4" placeholder="4-Digit PIN">
+    <div id="signupFields" class="hidden">
+        <input type="text" id="uQ" placeholder="Security Question (e.g. Favorite Color)">
+        <input type="text" id="uA" placeholder="Your Answer">
+    </div>
+    <button onclick="authAction()" id="authBtn">Enter Platform</button>
+    <div style="display:flex; justify-content: space-between; margin-top:15px; font-size:12px; color:var(--brand); text-decoration: underline; cursor: pointer;">
+        <span onclick="toggleAuth()">Login / Register</span>
+        <span onclick="showSection('recoverPanel')">Forgot PIN?</span>
+    </div>
+</div>
+
+<div id="recoverPanel" class="card hidden">
+    <h3>PIN Recovery</h3>
+    <input type="number" id="rPhone" placeholder="Registered Phone">
+    <input type="text" id="rA" placeholder="Your Answer">
+    <button onclick="recoverPin()">Show My PIN</button>
+    <button onclick="location.reload()" style="background:#444; margin-top:10px;">Cancel</button>
+</div>
+
+<div id="mainApp" class="hidden">
+    <div id="homeView">
+        <div class="card">
+            <h4>User: <span id="dispUser" style="color:var(--brand)"></span></h4>
+            <div class="bal-display">
+                <small style="color:var(--gray)">Available SDA Balance</small>
+                <div id="walletBal" style="font-size:26px; font-weight:bold; margin-top:5px;">0.00 SDA</div>
+                <button onclick="showSection('withdrawSec')" style="height:35px; font-size:11px; margin-top:10px; width:80%;">Send External (0.2% Fee)</button>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <button onclick="showSection('postSec')" style="background:var(--green); color:#fff;">Post Ad</button>
+                <button onclick="showSection('sellerSec')">Seller Dash</button>
+            </div>
+        </div>
+        <div class="card"><h3>Active Marketplace</h3><div id="marketFeed"></div></div>
+    </div>
+
+    <div id="sellerSec" class="card hidden">
+        <h3>Seller Management</h3>
+        <div class="bal-display">
+            <small style="color:var(--gray)">Permanent Funding Vault</small>
+            <div id="vAddrDisp" style="font-size:11px; word-break:break-all; color:var(--brand); margin:8px 0;"></div>
+            <button onclick="copyVault()" class="copy-btn">COPY ADDRESS</button>
+            <div id="vBalDisp" style="margin-top:15px; font-weight:bold;">Real-time Vault: 0.00 SDA</div>
+        </div>
+        <div id="sellerAlerts"></div>
+        <div id="myAds"></div>
+    </div>
+
+    <div id="postSec" class="card hidden">
+        <h3>Create Listing</h3>
+        <div class="alert-box">Transparency Note: Your ad will only appear to buyers when your Vault balance is greater than 0.</div>
+        <input type="number" id="pPrice" placeholder="NGN Rate per SDA">
+        <input type="number" id="pQty" placeholder="Quantity to Sell">
+        <input type="text" id="pBName" placeholder="Your Bank Name">
+        <input type="number" id="pBAcc" placeholder="Account Number">
+        <input type="text" id="pBHolder" placeholder="Account Holder Name">
+        <button onclick="postAd()">Publish Listing</button>
+    </div>
+
+    <div id="buyPanel" class="card hidden">
+        <h3>Trade Execution</h3>
+        <div id="bankInfo" class="alert-box"></div>
+        <div class="bal-display">
+            <small>Enter Purchase Quantity:</small>
+            <input type="number" id="bQty" oninput="updateBuyTotal()" placeholder="0.00">
+            <div id="bTotal" style="color:var(--brand); font-weight:bold; margin-top:10px; font-size:18px;">Total: 0 NGN</div>
+        </div>
+        <input type="text" id="bBank" placeholder="Your Paying Bank">
+        <input type="text" id="bName" placeholder="Your Name">
+        <button onclick="submitBuyProof()">Confirm Payment Sent</button>
+        <button onclick="reportDispute()" style="background:var(--red); color:#fff; margin-top:12px;">Open Dispute</button>
+    </div>
+
+    <div id="withdrawSec" class="card hidden">
+        <h3>SDA Withdrawal</h3>
+        <div class="alert-box">External transfers incur a 0.2% platform commission.</div>
+        <input type="text" id="wAddr" placeholder="Recipient SDA Address">
+        <input type="number" id="wAmt" placeholder="SDA Amount">
+        <button onclick="processWithdraw()" style="background:var(--red); color:#fff;">Confirm Withdrawal</button>
+    </div>
+
+    <div id="adminSec" class="card hidden">
+        <h3 style="color:var(--red)">Admin Command Center</h3>
+        <div id="adminList"></div>
+    </div>
+
+    <div id="aboutSec" class="card hidden legal-text">
+        <h3>About SDA BACK MARKET</h3>
+        <p>A professional, non-custodial P2P gateway built specifically for the Sidra Chain ecosystem. Our blind escrow ensures privacy and security for both parties.</p>
+    </div>
+    <div id="privacySec" class="card hidden legal-text">
+        <h3>Privacy Policy</h3>
+        <p>We do not store plain-text passwords. All account recovery is handled via localized secret answers. We do not track personal banking data outside of active trade facilitation.</p>
+    </div>
+    <div id="tosSec" class="card hidden legal-text">
+        <h3>Terms of Service</h3>
+        <p>1. Seller commission of 0.5% is deducted from every successful trade.<br>2. Withdrawal tax of 0.2% applies to all out-of-system sends.<br>3. Users are responsible for verifying NGN payments before releasing SDA.</p>
+    </div>
+</div>
+
+<div id="navBar" class="nav-bar hidden">
+    <div class="nav-item" onclick="showSection('homeView')">MARKET</div>
+    <div class="nav-item" onclick="showSection('aboutSec')">ABOUT</div>
+    <div class="nav-item" onclick="showSection('privacySec')">PRIVACY</div>
+    <div class="nav-item" onclick="showSection('tosSec')">TOS</div>
+    <div class="nav-item" onclick="logout()" style="color:var(--red)">LOGOUT</div>
+</div>
+
+<script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycby8HakJNBKHZBU921vYWJ5UJoCUxVkgHz-lEhJeYGnvXgv_Grs22leeND8Yc6EJ3XPSdg/exec"; 
+    const ADMIN_WALLET = "0x4A275086125F8F1F5DA01bc029Cc55d426B71cEE";
+    const RPC = "https://node.sidrachain.com";
+    
+    let curU = localStorage.getItem('sda_user'), myVault = localStorage.getItem('sda_vault'), myVKey = localStorage.getItem('sda_vkey');
+    let myBuyAddr = localStorage.getItem('sda_buyaddr'), myBuyKey = localStorage.getItem('sda_buykey');
+    let activePrice = 0, activeAdVault = "", hit = 0;
+
+    if(curU) { startApp(); setInterval(syncHeartbeat, 10000); }
+
+    function notify(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.style.display = 'block'; setTimeout(()=> t.style.display='none', 3000); }
+    function copyVault() { navigator.clipboard.writeText(myVault); notify("Address Copied!"); }
+    function toggleAuth() { 
+        document.getElementById('signupFields').classList.toggle('hidden'); 
+        document.getElementById('authTitle').innerText = document.getElementById('signupFields').classList.contains('hidden') ? "Secure Access" : "Create Account";
+    }
+
+    async function authAction() {
+        const isSignup = !document.getElementById('signupFields').classList.contains('hidden');
+        const v = ethers.Wallet.createRandom(), b = ethers.Wallet.createRandom();
+        const res = await fetch(GAS_URL, {method:"POST", body:JSON.stringify({
+            action:"auth", phone: document.getElementById('uPhone').value, pin: document.getElementById('uPin').value,
+            isSignup, question: document.getElementById('uQ').value, answer: document.getElementById('uA').value,
+            vault: v.address, vKey: v.privateKey, buyAddr: b.address, buyKey: b.privateKey
+        })});
+        const txt = await res.text();
+        if(txt === "EXISTS" || txt === "NOT_FOUND" || txt === "WRONG_PIN") notify("Auth Error");
+        else {
+            const data = isSignup ? {vault: v.address, vKey: v.privateKey, buyAddr: b.address, buyKey: b.privateKey} : JSON.parse(txt);
+            localStorage.setItem('sda_user', document.getElementById('uPhone').value);
+            localStorage.setItem('sda_vault', data.vault); localStorage.setItem('sda_vkey', data.vKey);
+            localStorage.setItem('sda_buyaddr', data.buyAddr); localStorage.setItem('sda_buykey', data.buyKey);
+            location.reload();
+        }
+    }
+
+    async function postAd() {
+        const p = new ethers.JsonRpcProvider(RPC);
+        const bal = await p.getBalance(myVault);
+        if (parseFloat(ethers.formatEther(bal)) <= 0) {
+            notify("❌ Vault Empty. Cannot Publish.");
+            showSection('sellerSec');
+            document.getElementById('sellerAlerts').innerHTML = `
+                <div class="alert-box" style="border: 2px solid var(--red);">
+                    <b style="color:var(--red)">FUNDING REQUIRED:</b><br>
+                    Sellers must have SDA in their vault to list. Deposit to:<br>
+                    <code>${myVault}</code><br><button onclick="copyVault()" class="copy-btn">COPY NOW</button>
+                </div>`;
+            return;
+        }
+        const adData = {
+            action: "postAd", sellerPhone: curU, vault: myVault,
+            price: document.getElementById('pPrice').value, qty: document.getElementById('pQty').value,
+            bName: document.getElementById('pBName').value, bAcc: document.getElementById('pBAcc').value,
+            bHolder: document.getElementById('pBHolder').value
+        };
+        await fetch(GAS_URL, {method:"POST", body:JSON.stringify(adData)});
+        notify("✅ Ad Live!"); showSection('homeView');
+    }
+
+    function startApp() {
+        document.getElementById('authPanel').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        document.getElementById('navBar').classList.remove('hidden');
+        document.getElementById('dispUser').innerText = curU;
+        document.getElementById('vAddrDisp').innerText = myVault;
+        syncHeartbeat();
+    }
+
+    async function syncHeartbeat() {
+        if(!curU) return;
+        const p = new ethers.JsonRpcProvider(RPC);
+        try {
+            const b1 = await p.getBalance(myBuyAddr);
+            const b2 = await p.getBalance(myVault);
+            document.getElementById('walletBal').innerText = ethers.formatEther(b1) + " SDA";
+            document.getElementById('vBalDisp').innerText = "Real-time Vault: " + ethers.formatEther(b2) + " SDA";
+        } catch(e) {}
+        const res = await fetch(GAS_URL); const d = await res.json();
+        renderMarket(d.ads, p);
+        renderSellerDash(d.ads, d.users);
+        if(hit >= 10) renderAdmin(d.ads);
+    }
+
+    async function renderMarket(ads, p) {
+        let h = "";
+        for(let i=1; i < ads.length; i++) {
+            const ad = ads[i];
+            if(ad[8] === "ACTIVE") {
+                const bal = await p.getBalance(ad[4]);
+                if (parseFloat(ethers.formatEther(bal)) > 0) {
+                    h += `<div class="ad-item"><div><b>${ad[2]} NGN</b><br><small>Stock: ${ad[3]} SDA</small></div>
+                    <button onclick="openBuy('${ad[4]}','${ad[2]}','${ad[5]} | ${ad[6]} | ${ad[7]}')" style="width:75px;">BUY</button></div>`;
+                }
+            }
+        }
+        document.getElementById('marketFeed').innerHTML = h || "No funded listings available.";
+    }
+
+    function renderSellerDash(ads, users) {
+        let h = "", a = "";
+        for(let i=1; i < ads.length; i++) {
+            const ad = ads[i];
+            if(ad[1] == curU && ad[8] !== "SOLD") {
+                if(ad[8] === "PENDING_CONFIRMATION") {
+                    const bUser = users.find(u => u[0] == ad[9].split(" | ")[0]);
+                    a += `<div class="alert-box"><b>ORDER RECEIVED:</b><br>${ad[9]}<br>
+                    <button onclick="releaseSDA('${myVKey}','${ad[3]}','${ad[4]}','${bUser[7]}')" style="background:var(--green); color:#fff; margin-top:10px;">RELEASE FUNDS</button></div>`;
+                }
+                h += `<div class="bal-display" style="font-size:11px;">Listing Qty: ${ad[3]} SDA | Active</div>`;
+            }
+        }
+        document.getElementById('sellerAlerts').innerHTML = a;
+        document.getElementById('myAds').innerHTML = h;
+    }
+
+    function openBuy(v, price, bank) {
+        activeAdVault = v; activePrice = price;
+        showSection('buyPanel');
+        document.getElementById('bankInfo').innerText = "Transfer NGN to: " + bank;
+    }
+
+    function updateBuyTotal() { document.getElementById('bTotal').innerText = "Total: " + (document.getElementById('bQty').value * activePrice).toLocaleString() + " NGN"; }
+
+    async function submitBuyProof() {
+        const pStr = `${curU} | Bank: ${document.getElementById('bBank').value} | Acc: ${document.getElementById('bName').value}`;
+        await fetch(GAS_URL, {method:"POST", body:JSON.stringify({action:"submitProof", vault: activeAdVault, buyerPhone: curU, proof: pStr})});
+        notify("Proof Sent to Seller!"); showSection('homeView');
+    }
+
+    async function releaseSDA(vKey, qty, vAddr, bAddr) {
+        const p = new ethers.JsonRpcProvider(RPC), w = new ethers.Wallet(vKey, p);
+        const fee = qty * 0.005;
+        try {
+            await w.sendTransaction({to: ADMIN_WALLET, value: ethers.parseEther(fee.toFixed(6))});
+            await w.sendTransaction({to: bAddr, value: ethers.parseEther((qty-fee).toFixed(6))});
+            await fetch(GAS_URL, {method:"POST", body:JSON.stringify({action:"updateStatus", vault:vAddr, newStatus:"SOLD"})});
+            notify("✅ SDA Released Successfully!"); syncHeartbeat();
+        } catch(e) { notify("Insufficient Gas for release."); }
+    }
+
+    async function processWithdraw() {
+        const p = new ethers.JsonRpcProvider(RPC), w = new ethers.Wallet(myBuyKey, p);
+        const amt = parseFloat(document.getElementById('wAmt').value), fee = amt * 0.002;
+        try {
+            await w.sendTransaction({to: ADMIN_WALLET, value: ethers.parseEther(fee.toFixed(6))});
+            await w.sendTransaction({to: document.getElementById('wAddr').value, value: ethers.parseEther((amt-fee).toFixed(6))});
+            notify("Withdrawal Sent!"); syncHeartbeat();
+        } catch(e) { notify("Error with transaction."); }
+    }
+
+    function triggerAdmin() { hit++; if(hit >= 10) { showSection('adminSec'); notify("Admin Mode Unlocked"); } }
+    function showSection(id) { document.querySelectorAll('#mainApp > div').forEach(div => div.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+    function logout() { localStorage.clear(); location.reload(); }
+</script>
+</body>
+</html>
